@@ -3,7 +3,7 @@ import os
 import tqdm
 import openai
 
-from utils import write_logprobs
+from ghostbuster.utils import write_logprobs
 from tenacity import (
     retry,
     stop_after_attempt,

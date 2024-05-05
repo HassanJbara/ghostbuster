@@ -5,8 +5,8 @@ import numpy as np
 from pkg_resources import resource_filename
 
 from config import openai_config
-from utils.symbolic import train_trigram, get_words, vec_functions, scalar_functions
-from utils.featurize import t_featurize_logprobs, score_ngram
+from ghostbuster.utils.symbolic import train_trigram, get_words, vec_functions, scalar_functions
+from ghostbuster.utils.featurize import t_featurize_logprobs, score_ngram
 
 class Ghostbuster(object):
     def __init__(self, tiktoken_encoder: str = "davinci-002", max_tokens: int = 2047) -> None:
