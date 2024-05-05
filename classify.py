@@ -3,96 +3,106 @@ import dill as pickle
 import tiktoken
 import openai
 import argparse
+import json
 
-from sklearn.linear_model import LogisticRegression
-from utils.featurize import normalize, t_featurize_logprobs, score_ngram
+from utils.featurize import t_featurize_logprobs, score_ngram
 from utils.symbolic import train_trigram, get_words, vec_functions, scalar_functions
+from config import openai_config
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--file", type=str, default="input.txt")
-parser.add_argument("--openai_key", type=str, default="")
-args = parser.parse_args()
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--file", type=str, default="input.txt")
 
-if args.openai_key != "":
-    openai.api_key = args.openai_key
+    args = parser.parse_args()
+    print("input args:\n", json.dumps(vars(args), indent=4, separators=(",", ":")))
+    return args
 
-file = args.file
-MAX_TOKENS = 2047
-best_features = open("model/features.txt").read().strip().split("\n")
 
-# Load davinci tokenizer
-enc = tiktoken.encoding_for_model("davinci")
+def main(args):
+    openai.api_key = openai_config["API_KEY"]
 
-# Load model
-model = pickle.load(open("model/model", "rb"))
-mu = pickle.load(open("model/mu", "rb"))
-sigma = pickle.load(open("model/sigma", "rb"))
+    file = args.file
+    MAX_TOKENS = 2047
+    best_features = open("model/features.txt").read().strip().split("\n")
 
-# Load data and featurize
-with open(file) as f:
-    doc = f.read().strip()
-    # Strip data to first MAX_TOKENS tokens
-    tokens = enc.encode(doc)[:MAX_TOKENS]
-    doc = enc.decode(tokens).strip()
+    # Load davinci tokenizer
+    enc = tiktoken.encoding_for_model("davinci-002")
 
-    print(f"Input: {doc}")
+    # Load model
+    model = pickle.load(open("model/model", "rb"))
+    mu = pickle.load(open("model/mu", "rb"))
+    sigma = pickle.load(open("model/sigma", "rb"))
 
-# Train trigram
-print("Loading Trigram...")
+    # Load data and featurize
+    with open(file) as f:
+        doc = f.read().strip()
+        # Strip data to first MAX_TOKENS tokens
+        tokens = enc.encode(doc)[:MAX_TOKENS]
+        doc = enc.decode(tokens).strip()
 
-trigram_model = train_trigram()
+        print(f"Input: {doc}")
 
-trigram = np.array(score_ngram(doc, trigram_model, enc.encode, n=3, strip_first=False))
-unigram = np.array(score_ngram(doc, trigram_model.base, enc.encode, n=1, strip_first=False))
+    # Train trigram
+    print("Loading Trigram...")
 
-response = openai.Completion.create(
-    model="ada",
-    prompt="<|endoftext|>" + doc,
-    max_tokens=0,
-    echo=True,
-    logprobs=1,
-)
-ada = np.array(list(map(lambda x: np.exp(x), response["choices"][0]["logprobs"]["token_logprobs"][1:])))
+    trigram_model = train_trigram()
 
-response = openai.Completion.create(
-    model="davinci",
-    prompt="<|endoftext|>" + doc,
-    max_tokens=0,
-    echo=True,
-    logprobs=1,
-)
-davinci = np.array(list(map(lambda x: np.exp(x), response["choices"][0]["logprobs"]["token_logprobs"][1:])))
+    trigram = np.array(score_ngram(doc, trigram_model, enc.encode, n=3, strip_first=False))
+    unigram = np.array(score_ngram(doc, trigram_model.base, enc.encode, n=1, strip_first=False))
 
-subwords = response["choices"][0]["logprobs"]["tokens"][1:]
-gpt2_map = {"\n": "Ċ", "\t": "ĉ", " ": "Ġ"}
-for i in range(len(subwords)):
-    for k, v in gpt2_map.items():
-        subwords[i] = subwords[i].replace(k, v)
+    response = openai.Completion.create(
+        model="babbage-002",
+        prompt="<|endoftext|>" + doc,
+        max_tokens=0,
+        echo=True,
+        logprobs=1,
+    )
+    ada = np.array(list(map(lambda x: np.exp(x), response["choices"][0]["logprobs"]["token_logprobs"][1:])))
 
-t_features = t_featurize_logprobs(davinci, ada, subwords)
+    response = openai.Completion.create(
+        model="davinci-002",
+        prompt="<|endoftext|>" + doc,
+        max_tokens=0,
+        echo=True,
+        logprobs=1,
+    )
+    davinci = np.array(list(map(lambda x: np.exp(x), response["choices"][0]["logprobs"]["token_logprobs"][1:])))
 
-vector_map = {
-    "davinci-logprobs": davinci,
-    "ada-logprobs": ada,
-    "trigram-logprobs": trigram,
-    "unigram-logprobs": unigram
-}
+    subwords = response["choices"][0]["logprobs"]["tokens"][1:]
+    gpt2_map = {"\n": "Ċ", "\t": "ĉ", " ": "Ġ"}
+    for i in range(len(subwords)):
+        for k, v in gpt2_map.items():
+            subwords[i] = subwords[i].replace(k, v)
 
-exp_features = []
-for exp in best_features:
+    t_features = t_featurize_logprobs(davinci, ada, subwords)
 
-    exp_tokens = get_words(exp)
-    curr = vector_map[exp_tokens[0]]
+    vector_map = {
+        "davinci-logprobs": davinci,
+        "ada-logprobs": ada,
+        "trigram-logprobs": trigram,
+        "unigram-logprobs": unigram
+    }
 
-    for i in range(1, len(exp_tokens)):
-        if exp_tokens[i] in vec_functions:
-            next_vec = vector_map[exp_tokens[i+1]]
-            curr = vec_functions[exp_tokens[i]](curr, next_vec)
-        elif exp_tokens[i] in scalar_functions:
-            exp_features.append(scalar_functions[exp_tokens[i]](curr))
-            break
+    exp_features = []
+    for exp in best_features:
 
-data = (np.array(t_features + exp_features) - mu) / sigma
-preds = model.predict_proba(data.reshape(-1, 1).T)[:, 1]
+        exp_tokens = get_words(exp)
+        curr = vector_map[exp_tokens[0]]
 
-print(f"Prediction: {preds}")
+        for i in range(1, len(exp_tokens)):
+            if exp_tokens[i] in vec_functions:
+                next_vec = vector_map[exp_tokens[i+1]]
+                curr = vec_functions[exp_tokens[i]](curr, next_vec)
+            elif exp_tokens[i] in scalar_functions:
+                exp_features.append(scalar_functions[exp_tokens[i]](curr))
+                break
+
+    data = (np.array(t_features + exp_features) - mu) / sigma
+    preds = model.predict_proba(data.reshape(-1, 1).T)[:, 1]
+
+    print(f"Prediction: {preds}")
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    main(args)
