@@ -2,6 +2,7 @@ import tiktoken
 import pickle
 import openai
 import numpy as np
+from pkg_resources import resource_filename
 
 from config import openai_config
 from utils.symbolic import train_trigram, get_words, vec_functions, scalar_functions
@@ -13,10 +14,15 @@ class Ghostbuster(object):
         self.enc = tiktoken.encoding_for_model(tiktoken_encoder)
 
         # Load models
-        self.model = pickle.load(open("model/model", "rb"))
-        self.mu = pickle.load(open("model/mu", "rb"))
-        self.sigma = pickle.load(open("model/sigma", "rb"))
-        self.best_features = open("model/features.txt").read().strip().split("\n")
+        model_path = resource_filename(__name__, "model/model")
+        mu_path = resource_filename(__name__, "model/mu")
+        sigma_path = resource_filename(__name__, "model/sigma")
+        features_path = resource_filename(__name__, "model/features.txt")
+
+        self.model = pickle.load(open(model_path, "rb"))
+        self.mu = pickle.load(open(mu_path, "rb"))
+        self.sigma = pickle.load(open(sigma_path, "rb"))
+        self.best_features = open(features_path).read().strip().split("\n")
         self.trigram_model = train_trigram()
 
         self.MAX_TOKENS = max_tokens
@@ -84,6 +90,6 @@ class Ghostbuster(object):
                     break
 
         data = (np.array(t_features + exp_features) - self.mu) / self.sigma
-        prediction = self.model.predict_proba(data.reshape(-1, 1).T)[:, 1][1] # has form of [[HUMAN, AI]]
+        prediction = self.model.predict_proba(data.reshape(-1, 1).T)[:, 1][0] # has form of [[HUMAN, AI]]
 
         return prediction
