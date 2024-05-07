@@ -1,28 +1,13 @@
-# Ghostbuster: Detecting Text <i>Ghostwritten</i> by Large Language Models <a href="https://arxiv.org/abs/2305.15047">[paper]</a> <a href="https://ghostbuster.app">[demo]</a> <a href="https://github.com/vivek3141/ghostbuster-data">[data]</a>
+# Ghostbuster: Detecting Text <i>Ghostwritten</i> by Large Language Models
 
-This is a fork of Ghostbuster that has been modified to integrate more easily with other projects.
+This is a fork of [Ghostbuster](https://github.com/vivek3141/ghostbuster) that has been modified to integrate more easily with other projects as a simple python package.
 
 ## Installation
 
-Each of our files are pickled with `python3.10`, so we highly reccomend creating a new conda environment as follows:
+To install the Ghostbuster package, run the following command:
 
-```
-conda create -n ghostbuster python=3.10
-conda activate ghostbuster
-```
-
-Then, clone the reponsitory:
-
-```
-git clone git@github.com:vivek3141/ghostbuster.git
-cd ghostbuster
-```
-
-Lastly, install the dependencies and the package:
-
-```
-pip install -r requirements.txt
-pip install -e .
+```bash
+pip install ghostbuster@git+https://github.com/vivek3141/ghostbuster.git
 ```
 
 You may also need to open a `python` shell to install the following nltk `brown` model:
@@ -34,29 +19,22 @@ nltk.download('brown')
 
 ## Usage
 
-In order to run a standalone text through Ghostbuster, we provide a `classify.py` file with the following usage:
+To use the package, add your OpenAI key as an env variable called `OPENAI_API_KEY`, then create a file called `openai.config` in the main directory with the following template:
 
-```
-python3 classify.py --file INPUT_FILE_HERE --openai_key OPENAI_KEY
-```
-
-To run the experiment files, create a file called `openai.config` in the main directory with the following template:
-
-```javascript
-{
-    "organization": ORGANIZATION,
-    "api_key": API_KEY
+```json
+openai_config = {
+    "API_KEY": os.environ.get("OPENAI_API_KEY", None)
 }
 ```
 
-Then, you must generate the cached symbolic data file. This consists of a feature vector for every single feature found through our "symbolic search" method. Running these commands will create binary files in the root directory:
+Now use the following code to detect ghostwritten text:
 
-```
-python train.py --generate_symbolic_data_four
-python train.py --generate_symbolic_data_eval
-```
+```python
+from ghostbuster import Ghostbuster
 
-These commands should take a couple hours to run! Then, you can run any of the experiments listed in the `run.py` file.
+ghostbuster = Ghostbuster()
+ghostbuster.predict("I love you") # returns ~0.9967 after ~20s
+```
 
 ## Disclaimer
 
