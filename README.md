@@ -7,7 +7,7 @@ This is a fork of [Ghostbuster](https://github.com/vivek3141/ghostbuster) that h
 To install the Ghostbuster package, run the following command:
 
 ```bash
-pip install ghostbuster@git+https://github.com/vivek3141/ghostbuster.git
+pip install ghostbuster@git+https://github.com/HassanJbara/ghostbuster
 ```
 
 You may also need to open a `python` shell to install the following nltk `brown` model:
@@ -19,9 +19,9 @@ nltk.download('brown')
 
 ## Usage
 
-To use the package, add your OpenAI key as an env variable called `OPENAI_API_KEY`, then create a file called `openai.config` in the main directory with the following template:
+To use the package, add your OpenAI key as an env variable called `OPENAI_API_KEY`, then create a file called `config.py` in the main directory with the following template:
 
-```json
+```python
 openai_config = {
     "API_KEY": os.environ.get("OPENAI_API_KEY", None)
 }
@@ -34,6 +34,12 @@ from ghostbuster import Ghostbuster
 
 ghostbuster = Ghostbuster()
 ghostbuster.predict("I love you") # returns ~0.9967 after ~20s
+```
+
+or simply run the following command:
+
+```bash
+python main.py --file <path_to_file>
 ```
 
 ## Disclaimer
