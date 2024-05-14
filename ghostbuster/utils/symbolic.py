@@ -1,6 +1,4 @@
-from nltk.util import ngrams
 from nltk.corpus import brown
-from nltk.tokenize import word_tokenize
 
 import tqdm
 import numpy as np
@@ -10,8 +8,7 @@ import dill as pickle
 from ghostbuster.utils.featurize import *
 from ghostbuster.utils.n_gram import *
 
-from collections import Counter, defaultdict
-from sklearn.linear_model import LogisticRegression
+from collections import defaultdict
 
 
 vec_functions = {
