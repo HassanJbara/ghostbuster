@@ -34,8 +34,6 @@ class Ghostbuster(object):
         tokens = self.enc.encode(text)[:self.MAX_TOKENS]
         doc = self.enc.decode(tokens).strip()
 
-        print(f"Input: {doc}")
-
         # Train trigram
         print("Loading Trigram...")
 
